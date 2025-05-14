@@ -127,6 +127,7 @@ def main():
     parser.add_argument('--lr', type=float, default=0.01, help='Learning rate')
     parser.add_argument('--test_count', type=int, default=1000, help='Number of test samples')
     parser.add_argument('--analyze', action='store_true', help='Analyze numbers in test set')
+    parser.add_argument('--predict', type=int, help='Predict all properties for this number using current models')
 
     args = parser.parse_args()
     os.makedirs('plots', exist_ok=True)
@@ -149,6 +150,48 @@ def main():
         ("Catalan", train_catalan_neuron, test_catalan_neuron, generate_catalan_data, "Not Catalan", "Catalan"),
     ]
 
+    if args.predict is not None:
+        print(f"\nPredicción de propiedades para el número {args.predict} usando los modelos actuales:\n")
+        prediction_report_lines = [f"Predicción de propiedades para el número {args.predict} usando los modelos actuales:\n"]
+        for prop in properties:
+            name, train_fn, test_fn, data_fn, label0, label1 = prop
+            # Intentar cargar el modelo entrenado si existe, si no, entrenar uno rápido
+            model_path = f"models/{name.lower().replace('/', '_')}_classifier.npz"
+            try:
+                neuron = loadModelParams(Neuron(inputSize=1), model_path)
+            except Exception:
+                print(f"  [!] No se encontró modelo entrenado para {name}. Entrenando uno rápido...")
+                prediction_report_lines.append(f"[!] No se encontró modelo entrenado para {name}. Entrenando uno rápido...\n")
+                if name == "Odd/Even":
+                    neuron, _ = train_fn(train_range=(0, 100), learning_rate=0.01, epochs=1000)
+                else:
+                    neuron, _ = train_fn(train_range=(0, 10000), learning_rate=0.01, epochs=1000)
+            # Predecir
+            x = np.array([args.predict])
+            pred = neuron.predict(x)
+            # Umbral
+            if name in ["Prime", "Perfect", "Fibonacci", "Armstrong", "Abundant", "Deficient", "Happy", "Triangular", "Catalan"]:
+                threshold = 0.1
+            else:
+                threshold = 0.5
+            pred_value = pred.item() if hasattr(pred, 'item') else float(pred[0])
+            result = label1 if pred_value > threshold else label0
+            line = f"  {name}: {result} (valor de red: {pred_value:.3f})"
+            print(line)
+            prediction_report_lines.append(line + "\n")
+            # Guardar resultados para graficar
+            if 'prediction_results' not in locals():
+                prediction_results = {}
+            prediction_results[name] = pred_value
+        # Guardar reporte en txt
+        txt_path = f"{args.predict}_prediction.txt"
+        with open(txt_path, "w", encoding="utf-8") as f:
+            f.writelines(prediction_report_lines)
+        print(f"\nReporte guardado como {txt_path} en el directorio raíz.")
+        # Ya no se genera la gráfica PNG para --predict, solo el TXT de reporte.
+        print("\nListo.")
+        return
+
     summary = []
     for prop in properties:
         name, train_fn, test_fn, data_fn, label0, label1 = prop
@@ -159,6 +202,9 @@ def main():
             # Odd/Even: metrics are not binary classification, skip for now
             continue
         neuron, losses = train_fn(train_range=(0, 10000), learning_rate=args.lr, epochs=args.epochs)
+        # Guardar modelo entrenado
+        model_path = f"models/{name.lower().replace('/', '_')}_classifier.npz"
+        saveModelParams(neuron, model_path)
         x, y = data_fn(0, args.test_count)
         preds = neuron.predict(x)
         # Use threshold 0.1 for rare classes, 0.5 for others
@@ -238,7 +284,8 @@ def main():
     for row in summary:
         print(f"{row[0]:<15} {row[1]:9.3f} {row[2]:10.3f} {row[3]:8.3f} {row[4]:6.3f}")
     print("=====================================================")
-    parser.add_argument('--predict', nargs='*', type=int, help='Predict properties for the given numbers (space-separated)')
+    # Only one definition for --predict argument
+
     args = parser.parse_args()
 
     # If --predict is used, perform predictions and exit
