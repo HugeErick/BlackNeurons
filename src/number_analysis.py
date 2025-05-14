@@ -57,3 +57,61 @@ def is_fibonacci(n):
     if n < 0:
         return False
     return is_perfect_square(5 * n * n + 4) or is_perfect_square(5 * n * n - 4)
+
+def is_palindrome(n):
+    s = str(abs(n))
+    return s == s[::-1]
+
+def is_armstrong(n):
+    s = str(abs(n))
+    num_digits = len(s)
+    return n == sum(int(d) ** num_digits for d in s)
+
+def is_harshad(n):
+    if n == 0:
+        return False
+    digit_sum = sum(int(d) for d in str(abs(n)))
+    return n % digit_sum == 0
+
+def is_square_free(n):
+    if n == 0:
+        return False
+    for i in range(2, int(abs(n) ** 0.5) + 1):
+        if n % (i * i) == 0:
+            return False
+    return True
+
+def is_abundant(n):
+    if n < 12:
+        return False
+    return sum(get_divisors(n)[:-1]) > n
+
+def is_deficient(n):
+    if n < 1:
+        return False
+    return sum(get_divisors(n)[:-1]) < n
+
+def is_happy(n):
+    seen = set()
+    n = abs(n)
+    while n != 1 and n not in seen:
+        seen.add(n)
+        n = sum(int(d) ** 2 for d in str(n))
+    return n == 1
+
+def is_triangular(n):
+    if n < 1:
+        return False
+    k = int((2 * n) ** 0.5)
+    return k * (k + 1) // 2 == n
+
+def is_catalan(n):
+    # Catalan numbers: C_0 = 1, C_{k+1} = C_k * 2*(2k+1)/(k+2)
+    if n < 1:
+        return False
+    c = 1
+    k = 0
+    while c < n:
+        k += 1
+        c = c * 2 * (2 * k - 1) // (k + 1)
+    return c == n
